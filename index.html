@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Quadro de Tarefas</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+        }
+        .board {
+            display: flex;
+            justify-content: space-around;
+            margin-top: 20px;
+            align-items: flex-start; /* Alinha as colunas na parte superior */
+        }
+        .column {
+            width: 30%;
+            background-color: #f4f4f4;
+            padding: 10px;
+            margin: 10px;
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            min-height: 100px; /* Altura mínima para manter a coluna visível */
+            display: flex;
+            flex-direction: column;
+        }
+        .task {
+            background-color: #fff;
+            margin-bottom: 10px;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            cursor: move;
+        }
+        .task:focus {
+            outline: none;
+            border-color: blue;
+        }
+        .add-task {
+            margin-bottom: 20px;
+        }
+        .column h3 {
+            margin-top: 0;
+        }
+        /* Estilo para textarea para se parecer com um input */
+        #newTaskInput {
+            width: 100%;
+            height: 50px; /* Altura fixa para parecer um input */
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            resize: none; /* Impede o redimensionamento */
+            box-sizing: border-box; /* Para garantir que o padding e a borda sejam incluídos na largura total */
+        }
+    </style>
+</head>
+<body>
+
+    <h2>Quadro de Tarefas</h2>
+
+    <!-- Adicionar nova tarefa -->
+    <div class="add-task">
+        <textarea id="newTaskInput" placeholder="Nova Tarefa" rows="3"></textarea>
+        <button onclick="addTask()">Adicionar Tarefa</button>
+    </div>
+
+    <div class="board" id="board">
+        <div class="column" id="todo" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h3>Para Fazer</h3>
+        </div>
+        <div class="column" id="in-progress" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h3>Em Progresso</h3>
+        </div>
+        <div class="column" id="done" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h3>Concluído</h3>
+        </div>
+        <div class="column" id="column1" ondrop="drop(event)" ondragover="allowDrop(event)">
+            <h3>Observação</h3>
+            <div class="tasks-container">
+                <!-- As tarefas serão adicionadas aqui -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function allowDrop(ev) {
+            ev.preventDefault();
+        }
+
+        function drag(ev) {
+            ev.dataTransfer.setData("text", ev.target.id);
+        }
+
+        function drop(ev) {
+            ev.preventDefault();
+            var data = ev.dataTransfer.getData("text");
+            let targetColumn = ev.target.closest('.column');
+            if (targetColumn) {
+                targetColumn.appendChild(document.getElementById(data));
+                saveBoard();
+            }
+        }
+
+        // Adicionar nova tarefa
+        function addTask() {
+            let taskInput = document.getElementById('newTaskInput');
+            let taskText = taskInput.value.trim();
+            if (taskText === '') return; // Não adicionar tarefas vazias
+
+            let task = createTaskElement(taskText);
+            document.getElementById('todo').appendChild(task);
+
+            taskInput.value = ''; // Limpar o campo de entrada
+
+            saveBoard(); // Salvar estado
+        }
+
+        // Criar um novo elemento de tarefa
+        function createTaskElement(taskText) {
+            let task = document.createElement('div');
+            task.className = 'task';
+            task.contentEditable = true;
+            task.draggable = true;
+            task.id = 'task-' + Date.now(); // ID único baseado no tempo atual
+            task.innerText = taskText;
+            task.ondragstart = drag;
+
+            // Remover tarefa se o conteúdo estiver vazio ao perder o foco
+            task.onblur = function() {
+                if (task.innerText.trim() === '') {
+                    if (confirm("Você realmente deseja apagar esta tarefa?")) {
+                        task.remove();
+                        saveBoard(); // Atualizar o estado após a remoção
+                    } else {
+                        task.innerText = taskText; // Restaura o texto anterior
+                        task.focus(); // Manter o foco na tarefa
+                    }
+                }
+            };
+
+            return task;
+        }
+
+        // Salvar o estado do quadro no localStorage
+        function saveBoard() {
+            let columns = document.querySelectorAll('.column');
+            let boardData = [];
+
+            columns.forEach(column => {
+                let columnTasks = [];
+                column.querySelectorAll('.task').forEach(task => {
+                    columnTasks.push(task.innerText.trim());
+                });
+                boardData.push({
+                    id: column.id,
+                    name: column.querySelector('h3').innerText,
+                    tasks: columnTasks
+                });
+            });
+
+            localStorage.setItem('tasksBoard', JSON.stringify(boardData));
+        }
+
+        // Carregar o estado do quadro do localStorage
+        function loadBoard() {
+            let savedBoard = localStorage.getItem('tasksBoard');
+            if (savedBoard) {
+                let boardData = JSON.parse(savedBoard);
+
+                // Limpar as tarefas da coluna existente
+                boardData.forEach(columnData => {
+                    let column = document.getElementById(columnData.id);
+                    column.querySelectorAll('.task').forEach(task => task.remove());
+                    columnData.tasks.forEach(taskText => {
+                        let task = createTaskElement(taskText);
+                        column.appendChild(task);
+                    });
+                });
+            }
+        }
+
+        // Carregar as colunas e tarefas ao iniciar a página
+        window.onload = function() {
+            loadBoard();
+        }
+    </script>
+</body>
+</html>
